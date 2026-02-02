@@ -65,12 +65,43 @@
     margin-top: 14px;
     opacity: 0.85;
   }
+
+  /* Modal + Fireworks styles */
+  #fireworksCanvas {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  #congratsModal {
+    position: fixed;
+    left: 50%;
+    top: 40%;
+    transform: translate(-50%, -50%);
+    background: rgba(255,255,255,0.98);
+    color: #111;
+    padding: 26px 28px;
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+    z-index: 1001;
+    min-width: 320px;
+    display: none;
+    text-align: center;
+  }
+
+  #congratsModal h3 { margin: 6px 0 14px 0; }
+  #congratsModal button { margin-top: 8px; }
 </style>
 </head>
 
 <body>
 
-<h1>🎉 Plus dental Lucky Draw</h1>
+<h1>ประกาศรายชื่อผู้โชคดีกับกิจกรรมฉลอง 10 ปี PLUS!</h1>
+<h2>ลุ้นรับ iPhone 17 pro (256Gb) และรางวัลพิเศษอีกมากมาย รวมกว่า 150,000 บาท</h2>
 
 <input type="file" id="excelFile" accept=".xlsx,.xls">
 
@@ -79,6 +110,15 @@
 <button id="btn" onclick="startDraw()">START</button>
 
 <div id="info"></div>
+
+<canvas id="fireworksCanvas"></canvas>
+
+<div id="congratsModal">
+  <h3>ขอแสดงความยินดี!</h3>
+  <div id="congratsName" style="font-size:20px;font-weight:700;margin-bottom:8px"></div>
+  <div>ขอแสดงความยินดีกับผู้โชคดี</div>
+  <button id="closeCongrats">ปิด</button>
+</div>
 
 <script>
 let names = [];
@@ -159,6 +199,126 @@ function finishDraw() {
     `🎯 ผู้โชคดี | รายชื่อคงเหลือ ${names.length.toLocaleString()} คน`;
 
   document.getElementById("btn").disabled = false;
+  // แสดง popup ยินดี พร้อมพลุข้างหลังประมาณ 8 วินาที
+  try { showCongrats(winner); } catch(e) { console.warn(e); }
+}
+
+/* =========================
+   Congrats modal + Fireworks
+   - showCongrats(winner) will display modal and run fireworks ~8s
+========================= */
+function showCongrats(winner) {
+  const modal = document.getElementById('congratsModal');
+  const nameEl = document.getElementById('congratsName');
+  const canvas = document.getElementById('fireworksCanvas');
+
+  nameEl.innerText = `"${winner}"`;
+  modal.style.display = 'block';
+  canvas.style.display = 'block';
+
+  startFireworks(8000);
+
+  const closeBtn = document.getElementById('closeCongrats');
+  const hideAll = () => { modal.style.display = 'none'; }
+  closeBtn.onclick = () => { hideAll(); stopFireworks(); };
+
+  // auto-hide after same duration
+  setTimeout(() => { hideAll(); stopFireworks(); }, 8200);
+}
+
+// Simple fireworks engine
+let _fw = { running: false, particles: [], bursts: [], raf: null, spawnInt: null };
+function startFireworks(duration = 8000) {
+  const canvas = document.getElementById('fireworksCanvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+
+  function resize() {
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  _fw.running = true;
+  _fw.particles = [];
+
+  function rand(a,b){return a + Math.random()*(b-a)}
+
+  function spawnBurst(x, y) {
+    const count = Math.floor(rand(20, 40));
+    const hue = Math.floor(rand(0, 360));
+    for (let i=0;i<count;i++){
+      const speed = rand(1.5, 6);
+      const angle = rand(0, Math.PI*2);
+      _fw.particles.push({
+        x, y,
+        vx: Math.cos(angle)*speed * (Math.random()*1.1+0.2),
+        vy: Math.sin(angle)*speed * (Math.random()*1.1+0.2),
+        life: rand(800,1600),
+        age: 0,
+        hue,
+        size: rand(1.6,3.8)
+      });
+    }
+  }
+
+  function step(ts) {
+    if (!_fw.running) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const now = performance.now();
+    for (let p of _fw.particles){
+      p.age += 16;
+      p.vy += 0.06; // gravity
+      p.vx *= 0.998;
+      p.vy *= 0.998;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      const t = p.age / p.life;
+      const alpha = Math.max(0, 1 - t);
+
+      ctx.beginPath();
+      ctx.fillStyle = `hsla(${p.hue}, 90%, 60%, ${alpha})`;
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // remove dead
+    _fw.particles = _fw.particles.filter(p => p.age < p.life);
+
+    _fw.raf = requestAnimationFrame(step);
+  }
+
+  // initial burst center top/mid, then random bursts
+  spawnBurst(window.innerWidth*0.5, window.innerHeight*0.35);
+  _fw.spawnInt = setInterval(() => {
+    const x = rand(window.innerWidth*0.15, window.innerWidth*0.85);
+    const y = rand(window.innerHeight*0.12, window.innerHeight*0.45);
+    spawnBurst(x,y);
+  }, 350);
+
+  _fw.raf = requestAnimationFrame(step);
+
+  // stop after duration
+  setTimeout(() => { stopFireworks(); }, duration);
+}
+
+function stopFireworks(){
+  const canvas = document.getElementById('fireworksCanvas');
+  if (!_fw.running) return;
+  _fw.running = false;
+  if (_fw.spawnInt) clearInterval(_fw.spawnInt);
+  if (_fw.raf) cancelAnimationFrame(_fw.raf);
+  _fw.particles = [];
+  // clear canvas and hide
+  const ctx = canvas.getContext('2d');
+  ctx && ctx.clearRect(0,0,canvas.width,canvas.height);
+  canvas.style.display = 'none';
 }
 </script>
 
