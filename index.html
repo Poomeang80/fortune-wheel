@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>🎉 Lucky Draw</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(135deg, #141e30, #243b55);
+    color: #fff;
+    text-align: center;
+    margin: 0;
+    padding: 40px;
+  }
+
+  h1 {
+    margin-bottom: 10px;
+  }
+
+  .box {
+    margin: 50px auto;
+    width: 560px;
+    height: 130px;
+    background: #ffffff;
+    color: #222;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 38px;
+    font-weight: bold;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.4);
+    letter-spacing: 1px;
+  }
+
+  .blink {
+    animation: blink 0.9s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  button {
+    padding: 14px 32px;
+    font-size: 18px;
+    border-radius: 30px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #ff9800, #ff5722);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(0,0,0,.35);
+  }
+
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  #info {
+    margin-top: 14px;
+    opacity: 0.85;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>🎉 Lucky Draw</h1>
+
+<input type="file" id="excelFile" accept=".xlsx,.xls">
+
+<div class="box blink" id="nameBox">READY</div>
+
+<button id="btn" onclick="startDraw()">START</button>
+
+<div id="info"></div>
+
+<script>
+let names = [];
+let running = false;
+let currentIndex = -1;
+
+/* =========================
+   Load Excel
+========================= */
+document.getElementById("excelFile").addEventListener("change", e => {
+  const reader = new FileReader();
+  reader.onload = evt => {
+    const wb = XLSX.read(new Uint8Array(evt.target.result), { type: "array" });
+    const sheet = wb.Sheets["Name"];
+    if (!sheet) return alert("❌ ไม่พบ Sheet 'Name'");
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    names = rows.map(r => r[0]).filter(v => v && v.toString().trim() !== "");
+
+    document.getElementById("info").innerText =
+      `📊 รายชื่อคงเหลือ ${names.length.toLocaleString()} คน`;
+  };
+  reader.readAsArrayBuffer(e.target.files[0]);
+});
+
+/* =========================
+   Lucky Draw (5 sec + slow down)
+========================= */
+function startDraw() {
+  if (names.length === 0 || running) return;
+
+  running = true;
+  document.getElementById("btn").disabled = true;
+
+  const box = document.getElementById("nameBox");
+  box.classList.add("blink");
+
+  const totalDuration = 5000;     // 5 วินาที
+  const startTime = performance.now();
+  let delay = 40;                 // เริ่มเร็ว
+  const maxDelay = 300;           // ช้าที่สุด
+
+  function roll() {
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(elapsed / totalDuration, 1);
+
+    // ease-out (ยิ่งใกล้จบ ยิ่งช้า)
+    delay = 40 + (maxDelay - 40) * Math.pow(progress, 2);
+
+    currentIndex = Math.floor(Math.random() * names.length);
+    box.innerText = names[currentIndex];
+
+    if (elapsed < totalDuration) {
+      setTimeout(roll, delay);
+    } else {
+      finishDraw();
+    }
+  }
+
+  roll();
+}
+
+/* =========================
+   Finish & remove name
+========================= */
+function finishDraw() {
+  running = false;
+
+  const box = document.getElementById("nameBox");
+  box.classList.remove("blink");
+
+  // ลบชื่อที่ได้ออก
+  const winner = names.splice(currentIndex, 1)[0];
+
+  box.innerText = winner;
+
+  document.getElementById("info").innerText =
+    `🎯 ผู้โชคดี | รายชื่อคงเหลือ ${names.length.toLocaleString()} คน`;
+
+  document.getElementById("btn").disabled = false;
+}
+</script>
+
+</body>
+</html>
