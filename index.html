@@ -114,9 +114,8 @@
 <canvas id="fireworksCanvas"></canvas>
 
 <div id="congratsModal">
-  <h3>ขอแสดงความยินดี!</h3>
+  <h3>ขอแสดงความยินดีกับ!</h3>
   <div id="congratsName" style="font-size:20px;font-weight:700;margin-bottom:8px"></div>
-  <div>ขอแสดงความยินดีกับผู้โชคดี</div>
   <button id="closeCongrats">ปิด</button>
 </div>
 
@@ -221,9 +220,6 @@ function showCongrats(winner) {
   const closeBtn = document.getElementById('closeCongrats');
   const hideAll = () => { modal.style.display = 'none'; }
   closeBtn.onclick = () => { hideAll(); stopFireworks(); };
-
-  // auto-hide after same duration
-  setTimeout(() => { hideAll(); stopFireworks(); }, 8200);
 }
 
 // Simple fireworks engine
